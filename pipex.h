@@ -18,7 +18,7 @@
 # include <sys/types.h>
 # include <sys/stat.h>  // open
 # include <stdio.h>     // perror
-# include "libft/libft.h"
+# include "libft.h"
 
 char	*find_command_path(char *cmd, char **envp);
 
