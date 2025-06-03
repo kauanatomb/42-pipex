@@ -41,7 +41,6 @@ static char	*search_in_paths(char **paths, char *cmd)
 	int		i;
 	char	*full_path;
 	char	*tmp;
-	int		j;
 
 	i = 0;
 	while (paths[i])
