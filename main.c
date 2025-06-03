@@ -37,8 +37,6 @@ int main(int argc, char *argv[], char *envp[])
         return (perror("Fork error"), 1);
     else if (pid == 0)
     {
-        ft_printf("envp[9]: %s\n", envp[9]);
-
         //son process
         dup2(infile_fd, STDIN_FILENO);
         dup2(pipefd[1], STDOUT_FILENO);
