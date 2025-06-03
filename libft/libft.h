@@ -6,7 +6,7 @@
 /*   By: ktombola <ktombola@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/24 11:09:19 by ktombola          #+#    #+#             */
-/*   Updated: 2025/04/30 17:33:11 by ktombola         ###   ########.fr       */
+/*   Updated: 2025/06/03 12:59:51 by ktombola         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -78,14 +78,14 @@ void	ft_lstclear(t_list **lst, void (*del)(void *));
 int		ft_lstsize(t_list *lst);
 
 // For printf
-int	ft_putnbr(int n);
-int	ft_putstr(char *s);
-int	ft_putchar(char c);
-int	ft_putunsign_int(unsigned int n);
-int	ft_puthex(unsigned int n, char c);
-int	ft_convertptr(void *ptr);
-int	ft_safeadd(int *count, int val);
-int	ft_printf(const char *str, ...);
+int		ft_putnbr(int n);
+int		ft_putstr(char *s);
+int		ft_putchar(char c);
+int		ft_putunsign_int(unsigned int n);
+int		ft_puthex(unsigned int n, char c);
+int		ft_convertptr(void *ptr);
+int		ft_safeadd(int *count, int val);
+int		ft_printf(const char *str, ...);
 
 // For get next line
 char	*get_next_line(int fd);

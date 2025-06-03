@@ -6,7 +6,7 @@
 /*   By: ktombola <ktombola@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 09:01:43 by ktombola          #+#    #+#             */
-/*   Updated: 2025/06/03 12:15:28 by ktombola         ###   ########.fr       */
+/*   Updated: 2025/06/03 13:01:46 by ktombola         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,5 +19,7 @@
 # include <sys/stat.h>  // open
 # include <stdio.h>     // perror
 # include "libft/libft.h"
+
+char	*find_command_path(char *cmd, char **envp);
 
 #endif
