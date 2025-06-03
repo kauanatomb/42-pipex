@@ -20,6 +20,7 @@ int main(int argc, char *argv[], char *envp[])
     int pipefd[2];
     int v_pipe;
     pid_t   pid;
+    pid_t   pid2;
     if (argc != 5)
         return (ft_printf("Arguments error.\n"), 1);
     infile_fd = open(argv[1], O_RDONLY);
@@ -45,20 +46,52 @@ int main(int argc, char *argv[], char *envp[])
         close(pipefd[1]);
         close(outfile_fd);
         char **args = ft_split(argv[2], ' ');
-        execve("/bin/ls", args, envp);
-
+        char *cmd_path = find_command_path(args[0], envp);
+        if (!cmd_path)
+        {
+            ft_printf("Command not found: %s\n", args[0]);
+            exit(EXIT_FAILURE);
+        }
+        execve(cmd_path, args, envp);
+        perror("Execve failed");
+        exit(EXIT_FAILURE);
     }
     else
     {
         //father process
-        close(pipefd[1]);
-        char buffer[1024];
-        int n;
-
-        while ((n = read(pipefd[0], buffer, sizeof(buffer))) > 0)
-            write(1, buffer, n);
-        close(pipefd[0]);
-        waitpid(pid, NULL, 0);
+        pid2 = fork();
+        if (pid2 < 0)
+            return (perror("Fork error"), 1);
+        else if (pid2 == 0)
+        {
+            //son process
+            dup2(pipefd[0], STDIN_FILENO);
+            dup2(outfile_fd, STDOUT_FILENO);
+            close(infile_fd);
+            close(pipefd[0]);
+            close(pipefd[1]);
+            close(outfile_fd);
+            char **args = ft_split(argv[3], ' ');
+            char *cmd_path = find_command_path(args[0], envp);
+            if (!cmd_path)
+            {
+                ft_printf("Command not found: %s\n", args[0]);
+                exit(EXIT_FAILURE);
+            }
+            execve(cmd_path, args, envp);
+            perror("Execve failed");
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+            //father process
+            close(infile_fd);
+            close(pipefd[0]);
+            close(pipefd[1]);
+            close(outfile_fd);
+            waitpid(pid, NULL, 0);
+            waitpid(pid2, NULL, 0);
+        }
     }
     return (0);
 }
