@@ -6,7 +6,7 @@
 /*   By: ktombola <ktombola@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 09:01:43 by ktombola          #+#    #+#             */
-/*   Updated: 2025/06/03 12:58:08 by ktombola         ###   ########.fr       */
+/*   Updated: 2025/06/03 13:12:03 by ktombola         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,16 @@ static char	*get_path_from_env(char **envp)
 	return (NULL);
 }
 
+static void	free_paths(char **paths)
+{
+	int	i;
+
+	i = 0;
+	while (paths[i])
+		free(paths[i++]);
+	free(paths);
+}
+
 static char	*search_in_paths(char **paths, char *cmd)
 {
 	int		i;
@@ -34,7 +44,7 @@ static char	*search_in_paths(char **paths, char *cmd)
 	int		j;
 
 	i = 0;
-	while (paths[i++])
+	while (paths[i])
 	{
 		full_path = ft_strjoin(paths[i], "/");
 		tmp = full_path;
@@ -42,17 +52,14 @@ static char	*search_in_paths(char **paths, char *cmd)
 		free(tmp);
 		if (access(full_path, X_OK) == 0)
 		{
-			j = 0;
-			while (paths[j])
-				free(paths[j++]);
-			return (free(paths), full_path);
+			free_paths(paths);
+			return (full_path);
 		}
 		free(full_path);
+		i++;
 	}
-	i = 0;
-	while (paths[i])
-		free(paths[i++]);
-	return (free(paths), NULL);
+	free_paths(paths);
+	return (NULL);
 }
 
 char	*find_command_path(char *cmd, char **envp)
