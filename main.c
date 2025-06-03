@@ -19,6 +19,7 @@ int main(int argc, char *argv[], char *envp[])
     int outfile_fd;
     int pipefd[2];
     int v_pipe;
+    pid_t   pid;
     if (argc != 5)
         return (ft_printf("Arguments error.\n"), 1);
     infile_fd = open(argv[1], O_RDONLY);
@@ -31,7 +32,35 @@ int main(int argc, char *argv[], char *envp[])
     v_pipe = pipe(pipefd);
     if (v_pipe == -1)
         return (perror("Pipe error"), 1);
-    ft_printf("pipefd[0] (read end): %d\n", pipefd[0]);
-    ft_printf("pipefd[1] (write end): %d\n", pipefd[1]);
+    pid = fork();
+    if (pid < 0)
+        return (perror("Fork error"), 1);
+    else if (pid == 0)
+    {
+        ft_printf("envp[9]: %s\n", envp[9]);
+
+        //son process
+        dup2(infile_fd, STDIN_FILENO);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(infile_fd);
+        close(pipefd[0]);
+        close(pipefd[1]);
+        close(outfile_fd);
+        char **args = ft_split(argv[2], ' ');
+        execve("/bin/ls", args, envp);
+
+    }
+    else
+    {
+        //father process
+        close(pipefd[1]);
+        char buffer[1024];
+        int n;
+
+        while ((n = read(pipefd[0], buffer, sizeof(buffer))) > 0)
+            write(1, buffer, n);
+        close(pipefd[0]);
+        waitpid(pid, NULL, 0);
+    }
     return (0);
 }
