@@ -19,7 +19,7 @@ static char	*get_path_from_env(char **envp)
 	i = 0;
 	while (envp[i])
 	{
-		if (!ft_strncmp(envp[i], "PATH=", 5))
+		if (ft_strncmp(envp[i], "PATH=", 5) == 0)
 			return (envp[i] + 5);
 		i++;
 	}
@@ -72,7 +72,7 @@ char	*find_command_path(char *cmd, char **envp)
 	if (cmd[0] == '/' || cmd[0] == '.')
 	{
 		if (access(cmd, X_OK) == 0)
-			return (ft_strdup(cmd));
+			return (cmd);
 		return (NULL);
 	}
 	paths = ft_split(path_env, ':');
