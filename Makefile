@@ -1,5 +1,5 @@
 NAME = pipex
-SRC = main.c pipex_utils.c
+SRC = main.c pipex_utils.c pipex_utils2.c pipex_utils3.c
 OBJ = $(SRC:.c=.o)
 
 CC = cc
