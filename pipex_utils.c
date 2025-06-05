@@ -6,75 +6,85 @@
 /*   By: ktombola <ktombola@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 09:01:43 by ktombola          #+#    #+#             */
-/*   Updated: 2025/06/03 13:12:03 by ktombola         ###   ########.fr       */
+/*   Updated: 2025/06/05 14:45:32 by ktombola         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "pipex.h"
 
-static char	*get_path_from_env(char **envp)
+static void	execute(char *cmd, char **envp)
 {
-	int	i;
+	char	**args;
+	char	*cmd_path;
 
-	i = 0;
-	while (envp[i])
+	args = ft_split(cmd, ' ');
+	cmd_path = find_command_path(args[0], envp);
+	if (!cmd_path)
 	{
-		if (ft_strncmp(envp[i], "PATH=", 5) == 0)
-			return (envp[i] + 5);
-		i++;
+		ft_printf("Command not found: %s\n", args[0]);
+		free_split(args);
+		exit(127);
 	}
-	return (NULL);
+	if (execve(cmd_path, args, envp) == -1)
+	{
+		free(cmd_path);
+		free_split(args);
+		error_exit("execve failed");
+	}
 }
 
-static void	free_paths(char **paths)
-{
-	int	i;
-
-	i = 0;
-	while (paths[i])
-		free(paths[i++]);
-	free(paths);
-}
-
-static char	*search_in_paths(char **paths, char *cmd)
+void	close_fds(int *fds, int count)
 {
 	int		i;
-	char	*full_path;
-	char	*tmp;
 
 	i = 0;
-	while (paths[i])
-	{
-		full_path = ft_strjoin(paths[i], "/");
-		tmp = full_path;
-		full_path = ft_strjoin(full_path, cmd);
-		free(tmp);
-		if (access(full_path, X_OK) == 0)
-		{
-			free_paths(paths);
-			return (full_path);
-		}
-		free(full_path);
-		i++;
-	}
-	free_paths(paths);
-	return (NULL);
+	while (i < count)
+		close(fds[i++]);
 }
 
-char	*find_command_path(char *cmd, char **envp)
+void	child_process(char **argv, char **envp, int *fd)
 {
-	char	*path_env;
-	char	**paths;
+	int	filein;
 
-	path_env = get_path_from_env(envp);
-	if (!path_env)
-		return (NULL);
-	if (cmd[0] == '/' || cmd[0] == '.')
-	{
-		if (access(cmd, X_OK) == 0)
-			return (cmd);
-		return (NULL);
-	}
-	paths = ft_split(path_env, ':');
-	return (search_in_paths(paths, cmd));
+	filein = open(argv[1], O_RDONLY);
+	if (filein < 0)
+		error_exit("open filein");
+	if (dup2(filein, STDIN_FILENO) < 0)
+		error_exit("dup2 filein");
+	if (dup2(fd[1], STDOUT_FILENO) < 0)
+		error_exit("dup2 pipe write");
+	close_fds(fd, 2);
+	close(filein);
+	execute(argv[2], envp);
+	error_exit("execve failed");
+}
+
+void	second_child_process(char **argv, char **envp, int *fd)
+{
+	int	fileout;
+
+	fileout = open(argv[4], O_WRONLY | O_CREAT | O_TRUNC, 0777);
+	if (fileout < 0)
+		error_exit("open fileout");
+	if (dup2(fd[0], STDIN_FILENO) < 0)
+		error_exit("dup2 pipe read");
+	if (dup2(fileout, STDOUT_FILENO) < 0)
+		error_exit("dup2 fileout");
+	close_fds(fd, 2);
+	close(fileout);
+	execute(argv[3], envp);
+	error_exit("execve failed");
+}
+
+int	wait_and_check(pid_t pid)
+{
+	int	status;
+
+	if (waitpid(pid, &status, 0) == -1)
+		error_exit("waitpid");
+	if (WIFEXITED(status))
+		return (WEXITSTATUS(status));
+	if (WIFSIGNALED(status))
+		return (128 + WTERMSIG(status));
+	return (1);
 }
