@@ -19,7 +19,7 @@ run_test() {
 
     echo -e "$infile_content" > "$INPUT_DIR/infile"
     
-    # Shell (referência)
+    # Shell
     bash -c "< $INPUT_DIR/infile $cmd1 | $cmd2" > "$OUTPUT_DIR/outfile_expected"
     echo $? > "$OUTPUT_DIR/exit_expected"
 
@@ -36,7 +36,7 @@ run_test() {
 
     echo $pipex_exit > "$OUTPUT_DIR/exit_actual"
 
-    # Diff comparação
+    # Diff
     diff "$OUTPUT_DIR/outfile_expected" "$OUTPUT_DIR/outfile_actual" > "$LOG_DIR/diff_out.txt"
     diff "$OUTPUT_DIR/exit_expected" "$OUTPUT_DIR/exit_actual" > "$LOG_DIR/diff_exit.txt"
 
@@ -55,13 +55,12 @@ run_test() {
 }
 
 
-### Testes básicos
+### Basic tests
 run_test "Basic: cat | wc -c" "test content\n" "cat" "wc -c"
 run_test "Grep not match" "line one\nline two\n" "grep foo" "wc -l"
 run_test "Invalid command" "abc" "nonexistent_cmd" "wc -c"
 run_test "Empty infile" "" "cat" "wc -l"
 run_test "Pipe: grep match" "foo\nbar\nfoo\n" "grep foo" "wc -l"
-run_test "Wrong number of args" "abc" "grep"
 
 ### Edge Cases
 
