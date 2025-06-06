@@ -12,12 +12,23 @@
 
 #include "pipex.h"
 
+static int	is_empty_command(const char *s)
+{
+	while (*s)
+	{
+		if (!((*s >= 8 && *s <= 13) || *s == ' '))
+			return (0);
+		s++;
+	}
+	return (1);
+}
+
 static void	execute(char *cmd, char **envp)
 {
 	char	**args;
 	char	*cmd_path;
 
-	if (!cmd || !*cmd)
+	if (!cmd || is_empty_command(cmd))
 	{
 		ft_putstr_fd("pipex: command not found: \"\"\n", 2);
 		exit(127);
@@ -36,15 +47,6 @@ static void	execute(char *cmd, char **envp)
 		free_split(args);
 		error_exit("execve failed");
 	}
-}
-
-void	close_fds(int *fds, int count)
-{
-	int		i;
-
-	i = 0;
-	while (i < count)
-		close(fds[i++]);
 }
 
 void	child_process(char **argv, char **envp, int *fd)

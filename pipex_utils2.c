@@ -78,3 +78,12 @@ char	*find_command_path(char *cmd, char **envp)
 	paths = ft_split(path_env, ':');
 	return (search_in_paths(paths, cmd));
 }
+
+void	close_fds(int *fds, int count)
+{
+	int		i;
+
+	i = 0;
+	while (i < count)
+		close(fds[i++]);
+}
