@@ -19,7 +19,10 @@ int	main(int argc, char *argv[], char *envp[])
 	pid_t	pid2;
 
 	if (argc != 5)
-		error_exit("Arguments error.\n");
+	{
+		ft_putendl_fd("Args error.\nUsage: ./pipex infile cmd1 cmd2 outfile", 2);
+		exit(1);
+	}
 	if (pipe(fd) == -1)
 		error_exit("Pipe error");
 	pid1 = fork();
