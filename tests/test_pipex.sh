@@ -76,11 +76,11 @@ run_test "Newlines only" "\n\n\n" "cat" "wc -l"
 run_test "Large input" "$(head -c 10000 < /dev/zero | tr '\0' 'a')" "cat" "wc -c"
 run_test "Unicode content" "😀\n😃\n" "cat" "wc -l"
 run_test "Empty command 1" "abc" "" "wc -l"
-run_test "Empty command 2" "abc" "cat" ""
 run_test "Command empty with spaces" "abc" "   " "cat -e"
 run_test "Command with space in the begging" "abc" "   ls" "cat -e"
+run_test "Cat in directory" "" "cat tests" "wc -l"
 # Should fail
-run_test "Cat in directory" "" "cat tests_pipex/" "wc -l"
+run_test "Empty command 2" "abc" "cat" ""
 
 ## For manual tests
 # echo -e "one two\nthree foo" > infile
