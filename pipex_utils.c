@@ -17,11 +17,16 @@ static void	execute(char *cmd, char **envp)
 	char	**args;
 	char	*cmd_path;
 
+	if (!cmd || !*cmd)
+	{
+		ft_putstr_fd("pipex: command not found: \"\"\n", 2);
+		exit(127);
+	}
 	args = ft_split(cmd, ' ');
 	cmd_path = find_command_path(args[0], envp);
-	if (!cmd_path)
+	if (!cmd_path || !args || !args[0])
 	{
-		ft_printf("Command not found: %s\n", args[0]);
+		ft_putstr_fd("pipex: command not found\n", 2);
 		free_split(args);
 		exit(127);
 	}
