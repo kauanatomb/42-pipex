@@ -38,7 +38,7 @@ fclean: clean
 	make fclean -C libft
 
 veryclean: fclean
-	rm -f outfile.txt
+	rm -f outfile
 
 re: fclean all
 
