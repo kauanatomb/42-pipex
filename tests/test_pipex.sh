@@ -54,6 +54,33 @@ run_test() {
     fi
 }
 
+run_zombie_test() {
+    local name="$1"
+    local infile_content="$2"
+    local cmd1="$3"
+    local cmd2="$4"
+
+    echo -e "$infile_content" > "$INPUT_DIR/infile"
+
+    ./pipex "$INPUT_DIR/infile" "$cmd1" "$cmd2" "$OUTPUT_DIR/outfile_actual" &
+    pipex_pid=$!
+    check_zombies "$pipex_pid"
+    wait $pipex_pid
+}
+
+check_zombies() {
+    local parent_pid=$1
+    local zombie_count
+    # Waiting moment to check if the kids dont become a zumbi
+    sleep 0.10
+    zombie_count=$(ps -o ppid=,stat= | awk -v pid="$parent_pid" '$1 == pid && $2 ~ /^Z/ { count++ } END { print count + 0 }')
+    
+    if [[ "$zombie_count" -gt 0 ]]; then
+        echo -e "${RED}⚠ Zombie(s) detected: $zombie_count${RESET}"
+    else
+        echo -e "${GREEN}✔ No zombies${RESET}"
+    fi
+}
 
 ### Basic tests
 run_test "Basic: cat | wc -c" "test content\n" "cat" "wc -c"
@@ -79,8 +106,25 @@ run_test "Empty command 1" "abc" "" "wc -l"
 run_test "Command empty with spaces" "abc" "   " "cat -e"
 run_test "Command with space in the begging" "abc" "   ls" "cat -e"
 run_test "Cat in directory" "" "cat tests" "wc -l"
+run_test "Path absolut wrong" "abc" "/usr/bin/cati" "wc -l"
+run_test "Exec wrong" "abc" "./test" "wc -l"
 # Should fail
 run_test "Empty command 2" "abc" "cat" ""
+
+# Run zumbi tests
+run_zombie_test "Test zumbi" "abc" "sleep 0.5" "wc -l"
+run_zombie_test "Zombie: invalid cmd1" "abc" "nonexistent" "wc -l"
+run_zombie_test "Zombie: invalid cmd2" "abc" "cat" "nonexistent"
+run_zombie_test "Zombie: both invalid cmds" "abc" "fail1" "fail2"
+run_zombie_test "Zombie: slow cmd2" "abc" "cat" "sleep 0.5"
+run_zombie_test "Zombie: slow cmd1" "abc" "sleep 0.5" "cat"
+run_zombie_test "Zombie: cmd1 perm denied" "abc" "./no_exec" "cat"
+run_zombie_test "Zombie: cmd2 syntax error" "abc" "cat" "grep --bad"
+run_zombie_test "Zombie: cmd1 immediate stderr" "abc" "ls invalid_dir" "cat"
+run_zombie_test "Zombie: cmd2 finishes fast" "abc" "yes | head -n1" "true"
+chmod 000 "$OUTPUT_DIR/protected_out"
+run_zombie_test "Zombie: write to protected outfile" "abc" "cat" "cat" "$OUTPUT_DIR/protected_out"
+chmod 644 "$OUTPUT_DIR/protected_out"
 
 ## For manual tests
 # echo -e "one two\nthree foo" > infile
