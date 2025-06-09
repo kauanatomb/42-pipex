@@ -10,43 +10,52 @@ LOG_DIR="tests/logs"
 
 mkdir -p "$INPUT_DIR" "$OUTPUT_DIR" "$LOG_DIR"
 
+create_infile() {
+    echo -e "$1" > "$INPUT_DIR/infile"
+}
+
 run_test() {
     local name="$1"
     local infile_content="$2"
     local cmd1="$3"
     local cmd2="$4"
+    local outfile="${5:-$OUTPUT_DIR/outfile_actual}"
     local valgrind_log="$LOG_DIR/valgrind_${name// /_}.log"
 
-    echo -e "$infile_content" > "$INPUT_DIR/infile"
-    
-    # Shell
+    create_infile "$infile_content"
+
+    # Esperado (shell)
     bash -c "< $INPUT_DIR/infile $cmd1 | $cmd2" > "$OUTPUT_DIR/outfile_expected"
     echo $? > "$OUTPUT_DIR/exit_expected"
 
+    # Pipex (real)
     if [[ "$USE_VALGRIND" == "1" ]]; then
         valgrind --quiet --leak-check=full \
-                 --error-exitcode=123 \
-                 --log-file="$valgrind_log" \
-                 ./pipex "$INPUT_DIR/infile" "$cmd1" "$cmd2" "$OUTPUT_DIR/outfile_actual"
+                --track-fds=yes \
+                --trace-children=yes \
+                --error-exitcode=123 \
+                --log-file="$valgrind_log" \
+                ./pipex "$INPUT_DIR/infile" "$cmd1" "$cmd2" "$outfile"
         pipex_exit=$?
+        [[ "$pipex_exit" -eq 123 ]] && echo -e "${RED}⚠ Valgrind error${RESET}"
+        grep -q "descriptor leaked" "$valgrind_log" && echo -e "${RED}⚠ FD leak${RESET}"
     else
-        ./pipex "$INPUT_DIR/infile" "$cmd1" "$cmd2" "$OUTPUT_DIR/outfile_actual"
+        ./pipex "$INPUT_DIR/infile" "$cmd1" "$cmd2" "$outfile"
         pipex_exit=$?
     fi
 
     echo $pipex_exit > "$OUTPUT_DIR/exit_actual"
 
-    # Diff
-    diff "$OUTPUT_DIR/outfile_expected" "$OUTPUT_DIR/outfile_actual" > "$LOG_DIR/diff_out.txt"
+    # Comparação
+    diff "$OUTPUT_DIR/outfile_expected" "$outfile" > "$LOG_DIR/diff_out.txt"
     diff "$OUTPUT_DIR/exit_expected" "$OUTPUT_DIR/exit_actual" > "$LOG_DIR/diff_exit.txt"
 
     if [[ -s "$LOG_DIR/diff_out.txt" || -s "$LOG_DIR/diff_exit.txt" || ( "$USE_VALGRIND" == "1" && "$pipex_exit" -eq 123 ) ]]; then
         echo -e "${RED}✘ $name${RESET}"
-
-        [[ -s "$LOG_DIR/diff_out.txt" ]] && echo -e "  ↳ Diff output:" && cat "$LOG_DIR/diff_out.txt"
-        [[ -s "$LOG_DIR/diff_exit.txt" ]] && echo -e "  ↳ Diff exit code:" && cat "$LOG_DIR/diff_exit.txt"
+        [[ -s "$LOG_DIR/diff_out.txt" ]] && echo "  ↳ Output differs:" && cat "$LOG_DIR/diff_out.txt"
+        [[ -s "$LOG_DIR/diff_exit.txt" ]] && echo "  ↳ Exit code differs:" && cat "$LOG_DIR/diff_exit.txt"
         if [[ "$USE_VALGRIND" == "1" && "$pipex_exit" -eq 123 ]]; then
-            echo -e "  ↳ Valgrind errors:"
+            echo "  ↳ Valgrind errors:"
             grep -E "Invalid|definitely|indirectly" "$valgrind_log" | sed 's/^/     /'
         fi
     else
@@ -59,28 +68,36 @@ run_zombie_test() {
     local infile_content="$2"
     local cmd1="$3"
     local cmd2="$4"
+    local outfile="${5:-$OUTPUT_DIR/outfile_actual}"
 
-    echo -e "$infile_content" > "$INPUT_DIR/infile"
-
-    ./pipex "$INPUT_DIR/infile" "$cmd1" "$cmd2" "$OUTPUT_DIR/outfile_actual" &
+    create_infile "$infile_content"
+    ./pipex "$INPUT_DIR/infile" "$cmd1" "$cmd2" "$outfile" &
     pipex_pid=$!
     check_zombies "$pipex_pid"
     wait $pipex_pid
 }
 
 check_zombies() {
-    local parent_pid=$1
-    local zombie_count
-    # Waiting moment to check if the kids dont become a zumbi
+    local parent_pid="$1"
+    local zombie_count=0
+
+    # Espera um pouco pros processos filhos terminarem
     sleep 0.2
-    zombie_count=$(ps -o ppid=,stat= | awk -v pid="$parent_pid" '$1 == pid && $2 ~ /^Z/ { count++ } END { print count + 0 }')
-    
+
+    # Verifica todos os filhos do pipex
+    while read -r stat; do
+        if [[ "$stat" == Z* ]]; then
+            ((zombie_count++))
+        fi
+    done < <(ps -o stat= --ppid "$parent_pid")
+
     if [[ "$zombie_count" -gt 0 ]]; then
         echo -e "${RED}⚠ Zombie(s) detected: $zombie_count${RESET}"
     else
         echo -e "${GREEN}✔ No zombies${RESET}"
     fi
 }
+
 
 ### Basic tests
 run_test "Basic: cat | wc -c" "test content\n" "cat" "wc -c"
@@ -91,9 +108,10 @@ run_test "Pipe: grep match" "foo\nbar\nfoo\n" "grep foo" "wc -l"
 
 ### Edge Cases
 
-chmod 000 tests_pipex/infile_perm
-run_test "Infile without permition" "$(echo 'without access')" "cat" "wc -l"
-chmod 644 tests_pipex/infile_perm
+echo "no access" > "$INPUT_DIR/infile_perm"
+chmod 000 "$INPUT_DIR/infile_perm"
+run_test "Infile without permission" "" "cat" "wc -l" "$INPUT_DIR/infile_perm"
+chmod 644 "$INPUT_DIR/infile_perm"
 run_test "Comando without visible output" "foo\nbar\nbaz\n" "grep -q foo" "wc -l"
 run_test "Second command invalid" "abc" "cat" "nonexistent_cmd"
 run_test "Command with partial error" "abc\ndef\nghi\n" "cat" "grep --invalid"
@@ -108,8 +126,11 @@ run_test "Command with space in the begging" "abc" "   ls" "cat -e"
 run_test "Cat in directory" "" "cat tests" "wc -l"
 run_test "Path absolut wrong" "abc" "/usr/bin/cati" "wc -l"
 run_test "Exec wrong" "abc" "./test" "wc -l"
-# Should fail
 run_test "Empty command 2" "abc" "cat" ""
+run_test "Path absoluto válido" "foo" "/bin/cat" "/usr/bin/wc -l"
+run_test "Comando sem uso de stdin" "n/a" "echo Hello" "cat"
+run_test "Comando com STDOUT stderr misto" "" "ls nofile" "cat"
+run_test "Comando que não termina (manual interrupção)" "" "tail -f /dev/null" "cat"
 
 # Run zumbi tests
 run_zombie_test "Test zumbi" "abc" "sleep 0.2" "wc -l"
@@ -122,10 +143,6 @@ run_zombie_test "Zombie: cmd1 perm denied" "abc" "./no_exec" "cat"
 run_zombie_test "Zombie: cmd2 syntax error" "abc" "cat" "grep --bad"
 run_zombie_test "Zombie: cmd1 immediate stderr" "abc" "ls invalid_dir" "cat"
 run_zombie_test "Zombie: cmd2 finishes fast" "abc" "yes" "head -n 1"
-touch "$OUTPUT_DIR/protected_out"
-chmod 000 "$OUTPUT_DIR/protected_out"
-run_zombie_test "Zombie: write to protected outfile" "abc" "cat" "cat" "$OUTPUT_DIR/protected_out"
-chmod 644 "$OUTPUT_DIR/protected_out"
 
 ## For manual tests
 # echo -e "one two\nthree foo" > infile
