@@ -152,3 +152,6 @@ run_zombie_test "Zombie: cmd2 finishes fast" "abc" "yes" "head -n 1"
 
 # diff expected outfile
 # diff exit_expected exit_actual
+
+# Test with Valgrind
+# valgrind --leak-check=full --trace-children=yes ./pipex infile "cmd1" "cmd2" outfile
